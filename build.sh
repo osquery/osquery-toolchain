@@ -133,35 +133,8 @@ function build_compiler-rt-builtins() {
   fi
 }
 
-function build_libunwind() {
-  if [[ ! -e ${install_dir}/lib/libunwind.so ]]; then
-
-    ( cd $LLVM_SRC && \
-      mkdir -p ${build_folder} && \
-      cd ${build_folder} && \
-      cmake -G ${BUILD_GENERATOR} \
-            -DCMAKE_BUILD_TYPE=${LLVM_BUILD_TYPE} \
-            -DCMAKE_C_COMPILER=${cc_compiler} \
-            -DCMAKE_CXX_COMPILER=${cxx_compiler} \
-            -DCMAKE_INSTALL_PREFIX=${install_dir} \
-            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--strip-all ${additional_linker_flags}" \
-            -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--strip-all ${additional_linker_flags}" \
-            -DCMAKE_SYSROOT="${SYSROOT}" \
-            -DLLVM_LINK_LLVM_DYLIB=ON \
-            -DLLVM_ENABLE_EH=ON \
-            -DLLVM_ENABLE_RTTI=ON \
-            -DLLVM_INCLUDE_DOCS=OFF \
-            -DLIBUNWIND_USE_COMPILER_RT=ON \
-            ${additional_cmake} \
-            ../libunwind && \
-      cmake --build . -j ${PARALLEL_JOBS} && \
-      cmake --build . --target install -j ${PARALLEL_JOBS} \
-    )
-  fi
-}
-
 #-DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
-function build_libcxx() {
+function build_compiler_libs() {
 
   if [[ ! -e ${install_dir}/lib/libc++.a ]]; then
     ( cd $LLVM_SRC && \
@@ -199,6 +172,8 @@ function build_libcxx() {
             -DLIBCXX_USE_COMPILER_RT=ON \
             -DLIBCXX_ENABLE_FILESYSTEM=ON \
             -DLIBUNWIND_USE_COMPILER_RT=ON \
+            -DLIBUNWIND_ENABLE_STATIC=ON \
+            -DLIBUNWIND_ENABLE_SHARED=OFF \
             ${additional_cmake} \
             ../llvm && \
       cmake --build . --target cxx -j ${PARALLEL_JOBS} && \
@@ -294,12 +269,6 @@ additional_compiler_flags="-s" \
 additional_cmake="" \
 build_llvm
 
-# Remove the static libclang/liblld and shared libc++/libunwind libraries from the sysroot.
-( cd $PREFIX/lib; \
-  rm libclang*.a; \
-  rm liblld*.a; \
-  rm libc++*.so.*; \
-  rm libunwind*.so.*)
 
 build_folder="build-compilerrt-builtins" \
 cc_compiler="clang" \
@@ -317,7 +286,7 @@ llvm_projects='libcxx;libcxxabi;libunwind' \
 targets_to_build='X86;BPF' \
 additional_linker_flags="" \
 additional_cmake="" \
-build_libcxx
+build_compiler_libs
 
 build_folder="build-libcxx" \
 cc_compiler="clang" \
@@ -327,7 +296,12 @@ llvm_projects='libcxx;libcxxabi;libunwind' \
 targets_to_build='X86;BPF' \
 additional_linker_flags="" \
 additional_cmake="" \
-build_libcxx
+build_compiler_libs
+
+# Remove the static libclang/liblld from the sysroot
+( cd $PREFIX/lib; \
+  rm -f libclang*.a; \
+  rm -f liblld*.a)
 
 # We do not update the sysroot because we want to use the one from the previous stage
 CURRENT_DIR=$TOOLCHAIN_DIR/final
@@ -357,12 +331,10 @@ CURRENT_DIR=$TOOLCHAIN_DIR/final
 SYSROOT=$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
 
-# Remove the static libclang/liblld/libLLVM and shared libc++/libunwind libraries from the sysroot.
+# Remove the static libclang/liblld/libLLVM from the sysroot.
 ( cd $PREFIX/lib; \
-  rm libclang*.a; \
-  rm liblld*.a; \
-  rm libLLVM*.a; \
-  rm libc++*.so.*; \
-  rm libunwind*.so.*)
+  rm -f libclang*.a; \
+  rm -f liblld*.a; \
+  rm -f libLLVM*.a)
 
 echo "Complete"
