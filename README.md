@@ -1,5 +1,5 @@
 # osquery-toolchain
-The script in this repository is used to build the LLVM/Clang toolchain which is used in the osquery project to create portable binaries of it.
+The script in this repository is used to build the LLVM/Clang toolchain which is used in the osquery project to create portable binaries of it.  
 The procedure to build such a toolchain has been based on the build-anywhere project: https://github.com/theopolis/build-anywhere
 
 Following the main goals of the toolchain:
@@ -62,10 +62,14 @@ The script has to be run as a normal user and accepts one argument, which is the
 ```
 ./build.sh /opt/osquery-toolchain
 ```
-This should output a under `/opt/osquery-toolchain/final` and the LLVM toolchain will be under `/opt/osquery-toolchain/sysroot/usr`
+This should output the sysroot under `/opt/osquery-toolchain/final` and the LLVM toolchain will be under `/opt/osquery-toolchain/final/sysroot/usr`
 
-## Redistribute
+## Redistributing and usage
 tar the sysroot folder and uncompress that wherever you like on the target machine.
+
+The toolchain defaults to using libc++ as the C++ standard library, compiler-rt as part of the builtins it needs, instead of relying on libgcc and lld as the linker; so these are implicit.
+libc++abi has to be explicitly linked when compiling C++ with `l:libc++abi.a` instead; merged with it there's also libunwind, which is therefore implicit.
+Sometimes explicitly adding `-ldl` and/or `-lrt` is needed, depending on what functions the binary is using.
 
 ## Troubleshooting
 If the compilation stops at any point in time, just relaunching the script should restart it.  
