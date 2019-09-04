@@ -44,7 +44,7 @@ sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 20
 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 20
 sudo update-alternatives --install /usr/bin/cpp cpp /usr/bin/cpp-8 20
 ```
-Download CMake 3.15.2
+Download and install CMake 3.15.2
 ```
 wget https://github.com/Kitware/CMake/releases/download/v3.15.2/cmake-3.15.2-Linux-x86_64.tar.gz
 sudo tar xvf cmake-3.15.2-Linux-x86_64.tar.gz -C /usr/local --strip 1
