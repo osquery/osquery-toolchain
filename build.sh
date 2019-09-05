@@ -190,6 +190,37 @@ function build_compiler_libs() {
   fi
 }
 
+function make_symlink_real() {
+  symlink=$1
+
+  # It has been already processed
+  if [ ! -L "$symlink" ]; then
+    return
+  fi
+
+  if [ ! -e "$symlink" ]; then
+    echo "The symlink $symlink doesn't exists"
+    exit 1
+  fi
+
+  real_path=`readlink -f "$symlink"`
+  symlink_name=`basename "$symlink"`
+
+  if [ ! -e "$real_path" ]; then
+    echo "The symlink $symlink links to $real_path which is a broken path"
+    exit 1
+  fi
+
+  symlink_parent_folder=`dirname "$symlink"`
+  rm "$symlink"
+
+  if [ -d "$real_path" ]; then
+    cp -r "$real_path" "$symlink_parent_folder/$symlink_name"
+  else
+    cp "$real_path" "$symlink_parent_folder/$symlink_name"
+  fi
+}
+
 set -e
 
 source ./config
@@ -197,6 +228,14 @@ source ./config
 TOOLCHAIN_DIR=$1
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
+
+# We are already at the final stage, nothing to do
+if [ -e $TOOLCHAIN_DIR/final/sysroot ]; then
+  echo "Nothing to do. If you want to redo the final stage please delete the $TOOLCHAIN_DIR/final/sysroot folder"
+  exit 0
+fi
+
+## STAGE 0 ##
 CURRENT_DIR=$TOOLCHAIN_DIR/stage0
 mkdir -p $CURRENT_DIR
 
@@ -221,17 +260,18 @@ if [[ ! -d $TOOLCHAIN_DIR/final ]]; then
 fi
 
 STAGE1_SYSROOT=$TOOLCHAIN_DIR/stage1/$TUPLE/$TUPLE/sysroot
-if [[ ! -L $STAGE1_SYSROOT/usr/lib/gcc ]]; then
+if [[ ! -e $STAGE1_SYSROOT/usr/lib/gcc ]]; then
   ( cd $STAGE1_SYSROOT/usr/lib; \
     ln -s ../../../../lib/gcc $STAGE1_SYSROOT/usr/lib )
 fi
 
 FINAL_SYSROOT=$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot
-if [[ ! -L $FINAL_SYSROOT/usr/lib/gcc ]]; then
+if [[ ! -e $FINAL_SYSROOT/usr/lib/gcc ]]; then
   ( cd $FINAL_SYSROOT/usr/lib; \
     ln -s ../../../../lib/gcc $FINAL_SYSROOT/usr/lib )
 fi
 
+## STAGE 1 ##
 CURRENT_DIR=$TOOLCHAIN_DIR/stage1
 SYSROOT=$CURRENT_DIR/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
@@ -309,6 +349,7 @@ build_compiler_libs
   rm -f libclang*.a; \
   rm -f liblld*.a)
 
+## FINAL ##
 # We do not update the sysroot because we want to use the one from the previous stage
 CURRENT_DIR=$TOOLCHAIN_DIR/final
 PREFIX=$CURRENT_DIR/$TUPLE/$TUPLE/sysroot/usr
@@ -337,10 +378,75 @@ CURRENT_DIR=$TOOLCHAIN_DIR/final
 SYSROOT=$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
 
-# Remove the static libclang/liblld/libLLVM from the sysroot.
+# Remove the static libclang/liblld/libLLVM and all versions of libstdc++ from the sysroot.
 ( cd $PREFIX/lib; \
   rm -f libclang*.a; \
   rm -f liblld*.a; \
-  rm -f libLLVM*.a)
+  rm -f libLLVM*.a; \
+  rm -f libstdc*)
+
+# Remove unused GCC binaries
+( cd $PREFIX/bin; \
+  rm -f gcc; \
+  rm -f g++; \
+  rm -f gcc-${GCC_VERSION}; \
+  rm -f c++; \
+  rm -f cc; \
+  rm -f ld; \
+  rm -f ld.bfd)
+
+# Remove crosstool-ng leftovers
+( cd $PREFIX/bin; \
+  rm -f ct-ng.config)
+
+symlinks_to_transform=(
+  lib/gcc
+  bin/addr2line
+  bin/ar bin/as
+  bin/c++filt
+  bin/cpp
+  bin/elfedit
+  bin/gcc-ar
+  bin/gcc-nm
+  bin/gcc-ranlib
+  bin/gcov
+  bin/gcov-dump
+  bin/gcov-tool
+  bin/gprof
+  bin/nm
+  bin/objcopy
+  bin/objdump
+  bin/populate
+  bin/ranlib
+  bin/readelf
+  bin/size
+  bin/strings
+  bin/strip
+)
+
+for symlink in "${symlinks_to_transform[@]}"
+do
+  make_symlink_real "$PREFIX/$symlink"
+done
+
+remaining_symlinks=`find "$SYSROOT" -type l`
+
+symlinks_to_fix=0
+while read line
+do
+  real_path=`readlink -f "$line"`
+  if [[ ! "$real_path" == "$SYSROOT/"* ]]; then
+    symlinks_to_fix=1
+    echo "$line -> $real_path"
+  fi
+done <<< "$remaining_symlinks"
+
+if [ $symlinks_to_fix -ne 0 ]; then
+  echo -e "\nThe above symlinks point out of the sysroot, please fix the script so that they are converted to a real file or are removed"
+  exit 1
+fi
+
+mv "$SYSROOT" "$CURRENT_DIR"
+rm -r "$CURRENT_DIR/$TUPLE"
 
 echo "Complete"
