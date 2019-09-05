@@ -4,11 +4,11 @@ The procedure to build such a toolchain has been based on the build-anywhere pro
 
 Following the main goals of the toolchain:
 - Obtain a LLVM/Clang toolchain which is portable and which doesn't depend from libstdc++ or libgcc.
-- The toolchain is compiled against an old glibc version, so that it runs on older distro.
+- The toolchain is compiled with a specific glibc version, so that it runs on a wide range of distributions.
 - The toolchain lives in a sysroot folder which should be self sufficient.
 - The toolchain should be able to produce binaries that are portable and run on libc >= 2.12.
   To do so, the output binary should depend only on shared libraries which are deeply connected with the environment they run on,
-  tipically libc, libdl, librt, libpthread.
+  typically libc, libdl, librt, libpthread.
 
 The rough steps used to achieve the above goals:
 - Use crosstool-ng to compile a stage0 GCC static toolchain, which might be newer than the one available in the system.
