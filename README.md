@@ -70,6 +70,7 @@ tar the sysroot folder and uncompress that wherever you like on the target machi
 The toolchain defaults to using libc++ as the C++ standard library, compiler-rt as part of the builtins it needs, instead of relying on libgcc and lld as the linker; so these are implicit.
 libc++abi has to be explicitly linked when compiling C++ with `l:libc++abi.a` instead; merged with it there's also libunwind, which is therefore implicit.
 Sometimes explicitly adding `-ldl` and/or `-lrt` is needed, depending on what functions the binary is using.
+The only other flag that's needed is `--sysroot=<sysroot path>`, so that the toolchain searches what it needs in the correct path.
 
 ## Troubleshooting
 If the compilation stops at any point in time, just relaunching the script should restart it.  
