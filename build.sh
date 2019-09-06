@@ -6,6 +6,7 @@
 # the LICENSE file found in the root directory of this source tree.
 
 # Heavily influenced by https://github.com/theopolis/build-anywhere
+# Version 1.0.0
 
 function build_gcc() {
   # Clone and build CrosstoolNG.
