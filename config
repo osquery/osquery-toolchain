@@ -1,6 +1,7 @@
 #!/bin/bash
 # For GCC configurations please look at crosstool-ng-config
 
+# The vendor part has to be changed also in the crosstool-ng-config file
 TUPLE=x86_64-osquery-linux-gnu
 
 ZLIB_VER="1.2.11"
