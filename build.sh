@@ -229,6 +229,10 @@ source ./config
 TOOLCHAIN_DIR=$1
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
+if [ -L "${TOOLCHAIN_DIR}" ] ; then
+  echo "The destination directory must not be a symbolic link"
+  exit 1
+fi
 
 # We are already at the final stage, nothing to do
 if [ -e $TOOLCHAIN_DIR/final/sysroot ]; then
@@ -321,7 +325,6 @@ additional_compiler_flags="-s" \
 additional_cmake="" \
 build_llvm
 
-
 build_folder="build-compilerrt-builtins" \
 cc_compiler="clang" \
 cxx_compiler="clang++" \
@@ -379,12 +382,11 @@ additional_linker_flags="-rtlib=compiler-rt -l:libc++abi.a -ldl -lpthread" \
 additional_cmake="${llvm_additional_cmake}" \
 build_llvm
 
-
 CURRENT_DIR=$TOOLCHAIN_DIR/final
 SYSROOT=$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
 
-# Remove the all versions of libstdc++ from the sysroot.
+# Remove all the versions of libstdc++ from the sysroot.
 ( cd $PREFIX/lib; \
   rm -f libstdc*)
 
