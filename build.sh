@@ -384,11 +384,8 @@ CURRENT_DIR=$TOOLCHAIN_DIR/final
 SYSROOT=$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
 
-# Remove the static libclang/liblld/libLLVM and all versions of libstdc++ from the sysroot.
+# Remove the all versions of libstdc++ from the sysroot.
 ( cd $PREFIX/lib; \
-  rm -f libclang*.a; \
-  rm -f liblld*.a; \
-  rm -f libLLVM*.a; \
   rm -f libstdc*)
 
 # Remove unused GCC binaries
