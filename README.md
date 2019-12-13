@@ -65,7 +65,13 @@ The script has to be run as a normal user and accepts one argument, which is the
 This should output the sysroot under `/opt/osquery-toolchain/final` and the LLVM toolchain will be under `/opt/osquery-toolchain/final/sysroot/usr`
 
 ## Redistributing and usage
-tar the sysroot folder and uncompress that wherever you like on the target machine.
+1. Enter inside the **final** folder within the destination path
+2. Rename the **sysroot** folder to **osquery-toolchain**
+3. Compress the folder with the following command: `tar --xz -cfp osquery-toolchain-<VERSION>.tar.xz osquery-toolchain`
+
+Make sure that the **<VERSION>** field matches a valid tag, for example: `osquery-toolchain-1.0.1.tar.xz`.
+
+The generated tarball can then be uncompressed wherever you like on the target machine.
 
 The toolchain defaults to using libc++ as the C++ standard library, compiler-rt as part of the builtins it needs, instead of relying on libgcc and lld as the linker; so these are implicit.
 libc++abi has to be explicitly linked when compiling C++ with `l:libc++abi.a` instead; merged with it there's also libunwind, which is therefore implicit.
