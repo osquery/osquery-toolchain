@@ -447,7 +447,13 @@ if [ $symlinks_to_fix -ne 0 ]; then
   exit 1
 fi
 
-mv "$SYSROOT" "$CURRENT_DIR"
-rm -r "$CURRENT_DIR/$TUPLE"
+if [ $KEEP_INTERMEDIATE_STAGES -eq 0 ]; then
+  mv "$SYSROOT" "$CURRENT_DIR"
+  rm -r "$CURRENT_DIR/$TUPLE"
+  rm -r "$TOOLCHAIN_DIR/stage1"
+  rm -r "$LLVM_SRC"
+else
+  ln -s "$SYSROOT" "$CURRENT_DIR"
+fi
 
 echo "Complete"
