@@ -29,7 +29,7 @@ startDockerContainer() {
   local container_name="osquery-toolchain-$(git rev-parse HEAD)"
   docker rm "${container_name}" > /dev/null 2>&1
 
-  docker run --rm -e "run_build_script=1" -v "$(realpath build):/opt/osquery-toolchain" -v "$(pwd):/home/osquery/osquery-toolchain" --name "${container_name}" -it "${BASE_IMAGE}" /bin/bash -c '/home/osquery/osquery-toolchain/docker.sh'
+  docker run --rm -e "run_build_script=1" -v "$(realpath build):/opt/osquery-toolchain" -v "$(pwd):/home/osquery/osquery-toolchain" --name "${container_name}" -it "${BASE_IMAGE}" /bin/bash -c '/home/osquery/osquery-toolchain/build_inside_docker.sh'
   if [[ $? != 0 ]] ; then
     echo "Failed to start the Docker container"
     return 1
