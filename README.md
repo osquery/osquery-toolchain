@@ -67,7 +67,7 @@ This should output the sysroot under `/opt/osquery-toolchain/final` and the LLVM
 ## Redistributing and usage
 1. Enter inside the **final** folder within the destination path
 2. Rename the **sysroot** folder to **osquery-toolchain**
-3. Compress the folder with the following command: `tar --xz -cfp osquery-toolchain-<VERSION>.tar.xz osquery-toolchain`
+3. Compress the folder with the following command: `tar -cJfp osquery-toolchain-<VERSION>.tar.xz osquery-toolchain`
 
 Make sure that the **<VERSION>** field matches a valid tag, for example: `osquery-toolchain-1.0.1.tar.xz`.
 

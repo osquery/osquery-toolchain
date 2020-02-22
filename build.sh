@@ -229,11 +229,6 @@ source ./config
 TOOLCHAIN_DIR=$1
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
-if [ -L "${TOOLCHAIN_DIR}" ] ; then
-  echo "The destination directory must not be a symbolic link"
-  exit 1
-fi
-
 # We are already at the final stage, nothing to do
 if [ -e $TOOLCHAIN_DIR/final/sysroot ]; then
   echo "Nothing to do. If you want to redo the final stage please delete the $TOOLCHAIN_DIR/final/sysroot folder"
@@ -435,12 +430,13 @@ do
 done
 
 remaining_symlinks=`find "$SYSROOT" -type l`
+real_sysroot=`$(realpath ${SYSROOT})`
 
 symlinks_to_fix=0
 while read line
 do
   real_path=`readlink -f "$line"`
-  if [[ ! "$real_path" == "$SYSROOT/"* ]]; then
+  if [[ ! "$real_path" == "$real_sysroot/"* ]]; then
     symlinks_to_fix=1
     echo "$line -> $real_path"
   fi
