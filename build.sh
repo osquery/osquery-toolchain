@@ -430,7 +430,7 @@ do
 done
 
 remaining_symlinks=`find "$SYSROOT" -type l`
-real_sysroot=`$(realpath ${SYSROOT})`
+real_sysroot=`realpath ${SYSROOT}`
 
 symlinks_to_fix=0
 while read line
