@@ -296,6 +296,11 @@ if [[ ! -d ${LLVM_SRC} ]]; then
   mkdir -p `dirname $LLVM_SRC`
   cd `dirname $LLVM_SRC`
   git clone https://github.com/llvm/llvm-project.git llvm -b llvmorg-$LLVM_VERSION --single-branch --depth 1
+
+  ## Patch the scan-build script so it works with sysroot= in the link options
+  cd llvm
+  patch -p1 < $SCRIPT_DIR/patches/00_scan-build-link-options.patch
+  patch -p1 < $SCRIPT_DIR/patches/01_scan-build-perl-warning.patch
 fi
 
 LLVM_DISABLED_TOOLS="-DLLVM_TOOL_BUGPOINT_BUILD=OFF"
