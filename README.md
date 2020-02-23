@@ -24,7 +24,7 @@ The rough steps used to achieve the above goals:
 The version of crosstool-ng used is 1.24.0
 The version of the GCC compiler built by crosstool-ng is 8.3.0
 The version of the libc library built by crosstool-ng is 2.12.2
-The version of LLVM/Clang built by the script is 8.0.1
+The version of LLVM/Clang built by the script is 9.0.1
 The version of the zlib library built by the script is 1.2.11
 
 Among other, the toolchain LLVM/Clang includes the clang static analyzer, scan-build, clang-format, clang-tidy.
