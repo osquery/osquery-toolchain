@@ -1,0 +1,49 @@
+From 473d0d7f569c84446d9880727403524d4a9838eb Mon Sep 17 00:00:00 2001
+From: Artem Dergachev <artem.dergachev@gmail.com>
+Date: Thu, 5 Sep 2019 00:44:56 +0000
+Subject: [PATCH] [analyzer] scan-build: handle --sysroot=/path in addition to
+ --sysroot /path.
+
+Current code assumes flags in CompilerLinkerOptionMap don't use =,
+which isn't always true.
+
+Patch by Chris Laplante!
+
+Differential Revision: https://reviews.llvm.org/D66569
+
+llvm-svn: 371002
+---
+ clang/tools/scan-build/libexec/ccc-analyzer | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/clang/tools/scan-build/libexec/ccc-analyzer b/clang/tools/scan-build/libexec/ccc-analyzer
+index e1635e6c29b8..6d24a1af4539 100755
+--- a/clang/tools/scan-build/libexec/ccc-analyzer
++++ b/clang/tools/scan-build/libexec/ccc-analyzer
+@@ -498,7 +498,8 @@ my $HasSDK = 0;
+ # Process the arguments.
+ foreach (my $i = 0; $i < scalar(@ARGV); ++$i) {
+   my $Arg = $ARGV[$i];
+-  my ($ArgKey) = split /=/,$Arg,2;
++  my @ArgParts = split /=/,$Arg,2;
++  my $ArgKey = @ArgParts[0];
+ 
+   # Be friendly to "" in the argument list.
+   if (!defined($ArgKey)) {
+@@ -566,10 +567,12 @@ foreach (my $i = 0; $i < scalar(@ARGV); ++$i) {
+     push @CompileOpts,$Arg;
+     push @LinkOpts,$Arg;
+ 
+-    while ($Cnt > 0) {
+-      ++$i; --$Cnt;
+-      push @CompileOpts, $ARGV[$i];
+-      push @LinkOpts, $ARGV[$i];
++    if (scalar @ArgParts == 1) {
++      while ($Cnt > 0) {
++        ++$i; --$Cnt;
++        push @CompileOpts, $ARGV[$i];
++        push @LinkOpts, $ARGV[$i];
++      }
+     }
+     next;
+   }

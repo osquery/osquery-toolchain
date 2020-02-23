@@ -36,7 +36,7 @@ For the instructions we will use Ubuntu 18.04.
 
 ## Prerequisites
 ```
-sudo apt install --no-install-recommends g++-8 gcc-8 automake autoconf gettext bison flex unzip help2man libtool-bin libncurses-dev make ninja-build
+sudo apt install --no-install-recommends g++-8 gcc-8 automake autoconf gettext bison flex unzip help2man libtool-bin libncurses-dev make ninja-build patch
 ```
 Then use `update-alternatives` to tell the system that the version of GCC/G++ and CPP is the default we would like to use:
 ```
