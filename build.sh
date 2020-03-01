@@ -104,7 +104,7 @@ function build_llvm() {
 
 function build_compiler-rt-builtins() {
 
-  if [[ ! -e ${install_dir}/lib/linux/libclang_rt.builtins-x86_64.a ]]; then
+  if [[ ! -e ${install_dir}/lib/linux/libclang_rt.builtins-aarch64.a ]]; then
 
     ( cd $LLVM_SRC && \
       mkdir -p ${build_folder} && \
@@ -315,7 +315,7 @@ cc_compiler="gcc" \
 cxx_compiler="g++" \
 install_dir="$PREFIX" \
 llvm_projects='clang;lld' \
-targets_to_build="X86" \
+targets_to_build="AArch64" \
 additional_linker_flags="" \
 additional_compiler_flags="-s" \
 additional_cmake="" \
@@ -335,7 +335,7 @@ cc_compiler="clang" \
 cxx_compiler="clang++" \
 install_dir="$PREFIX" \
 llvm_projects='libcxx;libcxxabi;libunwind' \
-targets_to_build='X86;BPF' \
+targets_to_build='AArch64;BPF' \
 additional_linker_flags="" \
 additional_cmake="" \
 build_compiler_libs
@@ -345,7 +345,7 @@ cc_compiler="clang" \
 cxx_compiler="clang++" \
 install_dir="$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot/usr" \
 llvm_projects='libcxx;libcxxabi;libunwind' \
-targets_to_build='X86;BPF' \
+targets_to_build='AArch64;BPF' \
 additional_linker_flags="" \
 additional_cmake="" \
 build_compiler_libs
@@ -373,7 +373,7 @@ cc_compiler="clang" \
 cxx_compiler="clang++" \
 install_dir="$PREFIX" \
 llvm_projects='clang;compiler-rt;lld' \
-targets_to_build="X86;BPF" \
+targets_to_build="AArch64;BPF" \
 additional_compiler_flags="" \
 additional_linker_flags="-rtlib=compiler-rt -l:libc++abi.a -ldl -lpthread" \
 additional_cmake="${llvm_additional_cmake}" \
@@ -456,7 +456,7 @@ if [ $KEEP_INTERMEDIATE_STAGES -eq 0 ]; then
   mv "$SYSROOT" "$CURRENT_DIR"
   rm -r "$CURRENT_DIR/$TUPLE"
   rm -r "$TOOLCHAIN_DIR/stage1"
-  rm -r "$LLVM_SRC"
+  rm -rf "$LLVM_SRC"	# Force needed for .git
 else
   ln -s "$SYSROOT" "$CURRENT_DIR"
 fi
