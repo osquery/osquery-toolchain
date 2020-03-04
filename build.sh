@@ -229,7 +229,6 @@ source ./config
 TOOLCHAIN_DIR=$1
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
-
 # We are already at the final stage, nothing to do
 if [ -e $TOOLCHAIN_DIR/final/sysroot ]; then
   echo "Nothing to do. If you want to redo the final stage please delete the $TOOLCHAIN_DIR/final/sysroot folder"
@@ -321,7 +320,6 @@ additional_compiler_flags="-s" \
 additional_cmake="" \
 build_llvm
 
-
 build_folder="build-compilerrt-builtins" \
 cc_compiler="clang" \
 cxx_compiler="clang++" \
@@ -379,16 +377,12 @@ additional_linker_flags="-rtlib=compiler-rt -l:libc++abi.a -ldl -lpthread" \
 additional_cmake="${llvm_additional_cmake}" \
 build_llvm
 
-
 CURRENT_DIR=$TOOLCHAIN_DIR/final
 SYSROOT=$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
 
-# Remove the static libclang/liblld/libLLVM and all versions of libstdc++ from the sysroot.
+# Remove all the versions of libstdc++ from the sysroot.
 ( cd $PREFIX/lib; \
-  rm -f libclang*.a; \
-  rm -f liblld*.a; \
-  rm -f libLLVM*.a; \
   rm -f libstdc*)
 
 # Remove unused GCC binaries
@@ -436,12 +430,13 @@ do
 done
 
 remaining_symlinks=`find "$SYSROOT" -type l`
+real_sysroot=`realpath ${SYSROOT}`
 
 symlinks_to_fix=0
 while read line
 do
   real_path=`readlink -f "$line"`
-  if [[ ! "$real_path" == "$SYSROOT/"* ]]; then
+  if [[ ! "$real_path" == "$real_sysroot/"* ]]; then
     symlinks_to_fix=1
     echo "$line -> $real_path"
   fi
