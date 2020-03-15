@@ -16,7 +16,7 @@ function build_gcc() {
   fi
 
   # Use our own config that sets a legacy glibc.
-  cp ./crosstool-ng-config $CURRENT_DIR/crosstool-ng/.config
+  cp ./crosstool-ng-config-$MACHINE $CURRENT_DIR/crosstool-ng/.config
 
   if [[ ! -f $CURRENT_DIR/crosstool-ng/ct-ng ]]; then
     ( cd $CURRENT_DIR/crosstool-ng; \
@@ -104,7 +104,7 @@ function build_llvm() {
 
 function build_compiler-rt-builtins() {
 
-  if [[ ! -e ${install_dir}/lib/linux/libclang_rt.builtins-x86_64.a ]]; then
+  if [[ ! -e ${install_dir}/lib/linux/libclang_rt.builtins-$MACHINE.a ]]; then
 
     ( cd $LLVM_SRC && \
       mkdir -p ${build_folder} && \
@@ -224,6 +224,18 @@ function make_symlink_real() {
 
 set -e
 
+MACHINE="$(uname -m)"
+if [ "$MACHINE" = "x86_64" ]
+then
+  LLVM_MACHINE="X86"
+elif [ "$MACHINE" = "aarch64" ]
+then
+  LLVM_MACHINE="AArch64"
+else
+  echo "Unspported architecture" 1>&2
+  exit 1
+fi
+
 source ./config
 
 TOOLCHAIN_DIR=$1
@@ -314,7 +326,7 @@ cc_compiler="gcc" \
 cxx_compiler="g++" \
 install_dir="$PREFIX" \
 llvm_projects='clang;lld' \
-targets_to_build="X86" \
+targets_to_build="$LLVM_MACHINE" \
 additional_linker_flags="" \
 additional_compiler_flags="-s" \
 additional_cmake="" \
@@ -333,7 +345,7 @@ cc_compiler="clang" \
 cxx_compiler="clang++" \
 install_dir="$PREFIX" \
 llvm_projects='libcxx;libcxxabi;libunwind' \
-targets_to_build='X86;BPF' \
+targets_to_build="$LLVM_MACHINE;BPF" \
 additional_linker_flags="" \
 additional_cmake="" \
 build_compiler_libs
@@ -343,7 +355,7 @@ cc_compiler="clang" \
 cxx_compiler="clang++" \
 install_dir="$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot/usr" \
 llvm_projects='libcxx;libcxxabi;libunwind' \
-targets_to_build='X86;BPF' \
+targets_to_build="$LLVM_MACHINE;BPF" \
 additional_linker_flags="" \
 additional_cmake="" \
 build_compiler_libs
@@ -371,7 +383,7 @@ cc_compiler="clang" \
 cxx_compiler="clang++" \
 install_dir="$PREFIX" \
 llvm_projects='clang;compiler-rt;lld' \
-targets_to_build="X86;BPF" \
+targets_to_build="$LLVM_MACHINE;BPF" \
 additional_compiler_flags="" \
 additional_linker_flags="-rtlib=compiler-rt -l:libc++abi.a -ldl -lpthread" \
 additional_cmake="${llvm_additional_cmake}" \
@@ -451,7 +463,7 @@ if [ $KEEP_INTERMEDIATE_STAGES -eq 0 ]; then
   mv "$SYSROOT" "$CURRENT_DIR"
   rm -r "$CURRENT_DIR/$TUPLE"
   rm -r "$TOOLCHAIN_DIR/stage1"
-  rm -r "$LLVM_SRC"
+  rm -rf "$LLVM_SRC"	# Force needed for .git
 else
   ln -s "$SYSROOT" "$CURRENT_DIR"
 fi
