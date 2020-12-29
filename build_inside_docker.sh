@@ -6,7 +6,7 @@
 #
 # SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
 
-export CMAKE_VERSION="3.15.2"
+export CMAKE_VERSION="3.17.5"
 export BASE_IMAGE="ubuntu:bionic"
 
 main() {

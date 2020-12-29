@@ -93,6 +93,7 @@ function build_llvm() {
             -DLLVM_INCLUDE_TESTS=OFF \
             -DLLVM_INCLUDE_EXAMPLES=OFF \
             -DLLVM_ENABLE_LIBXML2=OFF \
+            -DLLVM_ENABLE_PIC=ON \
             -DLLVM_DEFAULT_TARGET_TRIPLE=${TUPLE} \
             ${additional_cmake} \
             ../llvm && \
@@ -127,6 +128,7 @@ function build_compiler-rt-builtins() {
             -DLLVM_INCLUDE_DOCS=OFF \
             -DLLVM_INCLUDE_TESTS=OFF \
             -DLLVM_INCLUDE_EXAMPLES=OFF \
+            -DLLVM_ENABLE_PIC=ON \
             -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
             -DCOMPILER_RT_BUILD_PROFILE=OFF \
             -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
@@ -168,6 +170,7 @@ function build_compiler_libs() {
             -DLLVM_INCLUDE_TESTS=OFF \
             -DLLVM_INCLUDE_EXAMPLES=OFF \
             -DLLVM_ENABLE_LIBXML2=OFF \
+            -DLLVM_ENABLE_PIC=ON \
             -DLLVM_DEFAULT_TARGET_TRIPLE=${TUPLE} \
             -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
             -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
@@ -308,11 +311,6 @@ if [[ ! -d ${LLVM_SRC} ]]; then
   mkdir -p `dirname $LLVM_SRC`
   cd `dirname $LLVM_SRC`
   git clone https://github.com/llvm/llvm-project.git llvm -b llvmorg-$LLVM_VERSION --single-branch --depth 1
-
-  ## Patch the scan-build script so it works with sysroot= in the link options
-  cd llvm
-  patch -p1 < $SCRIPT_DIR/patches/00_scan-build-link-options.patch
-  patch -p1 < $SCRIPT_DIR/patches/01_scan-build-perl-warning.patch
 fi
 
 LLVM_DISABLED_TOOLS="-DLLVM_TOOL_BUGPOINT_BUILD=OFF"
@@ -383,7 +381,7 @@ build_folder="build-llvm-final" \
 cc_compiler="clang" \
 cxx_compiler="clang++" \
 install_dir="$PREFIX" \
-llvm_projects='clang;compiler-rt;lld' \
+llvm_projects='clang;compiler-rt;lld;clang-tools-extra' \
 targets_to_build="$LLVM_MACHINE;BPF" \
 additional_compiler_flags="" \
 additional_linker_flags="-rtlib=compiler-rt -l:libc++abi.a -ldl -lpthread" \
