@@ -1,9 +1,5 @@
 FROM ubuntu:18.04 AS base1
 
-# cmake version. See https://github.com/osquery/osquery/pull/6801 We
-# might have to fall back to something earlier and build cmake :\
-ENV cmakeVer 3.19.6
-
 RUN apt update -q -y
 RUN apt upgrade -q -y
 RUN apt install -q -y --no-install-recommends \
@@ -31,26 +27,49 @@ RUN apt install -q -y --no-install-recommends \
 	elfutils \
 	locales \
 	python3-wheel
-RUN apt clean && rm -rf /var/lib/apt/lists/* \
+
 RUN pip3 install timeout_decorator thrift==0.11.0 osquery pexpect==3.3 docker
 
 FROM base1 AS base2
 RUN case $(uname -m) in aarch64) ARCH="aarch64" ;; amd64|x86_64) ARCH="x86_64" ;; esac \
 	&& wget https://github.com/osquery/osquery-toolchain/releases/download/1.1.0/osquery-toolchain-1.1.0-${ARCH}.tar.xz \
 	&& sudo tar xvf osquery-toolchain-1.1.0-${ARCH}.tar.xz -C /usr/local \
-	&& rm osquery-toolchain-1.1.0-${ARCH}.tar.xz \
-	&& wget https://github.com/Kitware/CMake/releases/download/v${cmakeVer}/cmake-${cmakeVer}-Linux-${ARCH}.tar.gz \
-	&& sudo tar xvf cmake-${cmakeVer}-Linux-${ARCH}.tar.gz -C /usr/local --strip 1 \
-	&& rm cmake-${cmakeVer}-Linux-${ARCH}.tar.gz
+	&& rm osquery-toolchain-1.1.0-${ARCH}.tar.xz
 
-RUN rm -rf /usr/local/doc /usr/local/bin/cmake-gui
+FROM base2 as base3
 
-FROM base2 AS base3
+# Due to https://github.com/osquery/osquery/pull/6801 we build our own cmake. :<
+# (This takes about 2 hours to run in dockerx aarch64 emulation)
+# ENV cmakeVer 3.19.6
+#RUN case $(uname -m) in aarch64) ARCH="aarch64" ;; amd64|x86_64) ARCH="x86_64" ;; esac \
+#	&& wget https://github.com/Kitware/CMake/releases/download/v${cmakeVer}/cmake-${cmakeVer}-Linux-${ARCH}.tar.gz \
+#	&& sudo tar xvf cmake-${cmakeVer}-Linux-${ARCH}.tar.gz -C /usr/local --strip 1 \
+#	&& rm cmake-${cmakeVer}-Linux-${ARCH}.tar.gz
+
+
+RUN apt install -q -y gcc g++ libssl-dev
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.17.5/cmake-3.17.5.tar.gz
+RUN tar zxvf cmake-3.17.5.tar.gz
+RUN cd cmake-3.17.5 \
+	&& ./bootstrap -- -DCMAKE_BUILD_TYPE:STRING=Release \
+	&& make -j`nproc` \
+	&& make install
+
+RUN rm -rf cmake-3.17.5.tar.gz cmake-3.17.5
+RUN apt remove -y gcc g++ libssl-dev
+
+
+FROM base3 AS base4
 RUN locale-gen en_US.UTF-8
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
+
+RUN apt autoremove --purge -y
+RUN rm -rf /usr/local/doc /usr/local/bin/cmake-gui
+RUN apt clean
+RUN rm -rf /var/lib/apt/lists/*
 
 # Squash all layers down using a giant COPY. It's kinda gross, but it
 # works. Though the layers are only adding about 50 megs on a 1gb
 # image.
 FROM scratch AS builder
-COPY --from=base3 / /
+COPY --from=base4 / /
