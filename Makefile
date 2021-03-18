@@ -8,6 +8,6 @@ containers:
 	docker buildx build --platform linux/amd64,linux/arm64 --push -t osquery/builder .
 
 arm:
-	docker buildx build --platform linux/arm64 --load -t directionless/osqbuildbeta:$@ .
+	docker buildx build --platform linux/arm64 --load -t osquerybuild:$@ .
 x86:
-	docker buildx build --platform linux/amd64 --load -t directionless/osqbuildbeta:$@ .
+	docker buildx build --platform linux/amd64 --load -t osquerybuild:$@ .
