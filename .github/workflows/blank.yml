@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
 
       - name: Dependencies
         run: |
@@ -20,4 +20,10 @@ jobs:
           sudo apt-get install help2man libtool-bin libncurses-dev ninja-build texinfo xz-utils gawk -y   
 
       - name: Build
-        run: KEEP_INTERMEDIATE_STAGES=1 ./build.sh "/opt/osquery-toolchain"
+        run: ./build.sh "/opt/osquery-toolchain"
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        with:
+          name: osquery-toolchain
+          path: /opt/osquery-toolchain
+          
