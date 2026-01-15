@@ -1,0 +1,18 @@
+name: Build Toolchain
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: KEEP_INTERMEDIATE_STAGES=1 ./build.sh "/opt/osquery-toolchain"
