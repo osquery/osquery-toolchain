@@ -17,10 +17,7 @@ jobs:
       - name: Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install g++-8 gcc-8 automake autoconf gettext bison flex unzip help2man libtool-bin libncurses-dev make ninja-build texinfo xz-utils gawk -y
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 20
-          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 20
-          sudo update-alternatives --install /usr/bin/cpp cpp /usr/bin/cpp-8 20        
+          sudo apt-get install help2man libtool-bin libncurses-dev ninja-build texinfo xz-utils gawk -y   
 
       - name: Build
         run: KEEP_INTERMEDIATE_STAGES=1 ./build.sh "/opt/osquery-toolchain"
