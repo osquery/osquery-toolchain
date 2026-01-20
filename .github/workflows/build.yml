@@ -22,8 +22,14 @@ jobs:
       - name: Build
         run: ./build.sh "/opt/osquery-toolchain"
 
+      - name: Archive
+        run: |
+          cd /opt/osquery-toolchain/final
+          mv sysroot osquery-toolchain
+          tar -pcvJf osquery-toolchain-${{ github.ref_name }}.tar.xz osquery-toolchain
+
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
         with:
           name: osquery-toolchain
-          path: /opt/osquery-toolchain
+          path: /opt/osquery-toolchain/osquery-toolchain-${{ github.ref_name }}.tar.xz
           
