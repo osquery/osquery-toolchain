@@ -26,10 +26,15 @@ jobs:
         run: |
           cd /opt/osquery-toolchain/final
           mv sysroot osquery-toolchain
-          tar -pcvJf osquery-toolchain-${{ github.ref_name }}.tar.xz osquery-toolchain
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+          else
+            VERSION="${GITHUB_SHA}"
+          fi
+          tar -pcvJf osquery-toolchain-${VERSION}.tar.xz osquery-toolchain
 
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
         with:
           name: osquery-toolchain
-          path: /opt/osquery-toolchain/osquery-toolchain-${{ github.ref_name }}.tar.xz
+          path: /opt/osquery-toolchain/osquery-toolchain-*.tar.xz
           
