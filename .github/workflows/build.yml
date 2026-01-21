@@ -19,7 +19,7 @@ jobs:
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             echo "VERSION=${GITHUB_REF_NAME}-$(uname -m)" >> "$GITHUB_ENV"
           else
-            echo "VERSION=${GITHUB_SHA}-$(uname-m)" >> "$GITHUB_ENV"
+            echo "VERSION=${GITHUB_SHA}-$(uname -m)" >> "$GITHUB_ENV"
           fi
 
       - name: Check VERSION
