@@ -19,6 +19,3 @@ LLVM_BUILD_TYPE=MinSizeRel
 
 # If this is false, only the last stage with the clang compile and the first stage, with crosstool gcc will be kept
 KEEP_INTERMEDIATE_STAGES=0
-
-# Turn off progress spinner that fills up logs on CI
-CT_LOG_PROGRESS_BAR=n
