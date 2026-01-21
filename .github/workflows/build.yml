@@ -20,9 +20,7 @@ jobs:
           sudo apt-get install help2man libtool-bin libncurses-dev ninja-build texinfo xz-utils gawk -y   
 
       - name: Build
-        run: |
-          export TERM=dumb
-          ./build.sh "/opt/osquery-toolchain"
+        run: ./build.sh "/opt/osquery-toolchain"
 
       - name: Archive
         run: |
