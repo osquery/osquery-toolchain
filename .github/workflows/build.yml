@@ -3,12 +3,15 @@ name: Build Toolchain
 on:
   push:
     branches: [ "master" ]
+    tags: [ "*" ]
   pull_request:
     branches: [ "master" ]
   workflow_dispatch:
 
 jobs:
   build:
+    permissions:
+      contents: write
     strategy:
       matrix:
         os: [ubuntu-22.04, ubuntu-22.04-arm]
@@ -40,8 +43,18 @@ jobs:
           mv sysroot osquery-toolchain
           tar -pcvJf osquery-toolchain-${VERSION}.tar.xz osquery-toolchain
 
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+      - name: Upload Artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
         with:
           name: osquery-toolchain-${{ env.VERSION }}
           path: /opt/osquery-toolchain/final/osquery-toolchain-${{ env.VERSION }}.tar.xz
+
+      - name: Upload Release Asset
+        if: ${{ github.ref_type == 'tag' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${GITHUB_REF_NAME}" \
+            "/opt/osquery-toolchain/final/osquery-toolchain-${VERSION}.tar.xz" \
+            --repo "${GITHUB_REPOSITORY}"
           
