@@ -22,12 +22,7 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
 
       - name: Set Version
-        run: |
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            echo "VERSION=${GITHUB_REF_NAME}-$(uname -m)" >> "$GITHUB_ENV"
-          else
-            echo "VERSION=${GITHUB_SHA}-$(uname -m)" >> "$GITHUB_ENV"
-          fi
+        run: echo "VERSION=$(git describe --tags --always --dirty)-$(uname -m)" >> "$GITHUB_ENV"
 
       - name: Dependencies
         run: |
