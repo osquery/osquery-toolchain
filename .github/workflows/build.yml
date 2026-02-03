@@ -2,10 +2,10 @@ name: Build Toolchain
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "main" ]
     tags: [ "*" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master", "main" ]
   workflow_dispatch:
 
 jobs:
