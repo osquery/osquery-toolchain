@@ -1,0 +1,55 @@
+name: Build Toolchain
+
+on:
+  push:
+    branches: [ "master", "main" ]
+    tags: [ "*" ]
+  pull_request:
+    branches: [ "master", "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-22.04-arm]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
+
+      - name: Set Version
+        run: echo "VERSION=$(git describe --tags --always --dirty)-$(uname -m)" >> "$GITHUB_ENV"
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install help2man libtool-bin libncurses-dev ninja-build texinfo xz-utils gawk -y   
+
+      - name: Build
+        run: ./build.sh "/opt/osquery-toolchain"
+
+      - name: Archive
+        run: |
+          cd /opt/osquery-toolchain/final
+          mv sysroot osquery-toolchain
+          tar -pcvJf osquery-toolchain-${VERSION}.tar.xz osquery-toolchain
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f #v6.0.0
+        with:
+          name: osquery-toolchain-${{ env.VERSION }}
+          path: /opt/osquery-toolchain/final/osquery-toolchain-${{ env.VERSION }}.tar.xz
+
+      - name: Upload Release Asset
+        if: ${{ github.ref_type == 'tag' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${GITHUB_REF_NAME}" \
+            "/opt/osquery-toolchain/final/osquery-toolchain-${VERSION}.tar.xz" \
+            --repo "${GITHUB_REPOSITORY}"
+          
