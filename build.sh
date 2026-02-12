@@ -13,7 +13,7 @@ function build_gcc() {
   # Clone and build CrosstoolNG.
   if [[ ! -d $CURRENT_DIR/crosstool-ng ]]; then
     ( cd $CURRENT_DIR; \
-      git clone https://github.com/crosstool-ng/crosstool-ng -b crosstool-ng-1.24.0 --single-branch )
+      git clone https://github.com/crosstool-ng/crosstool-ng -b crosstool-ng-1.28.0 --single-branch )
   fi
 
   # Use our own config that sets a legacy glibc.
@@ -159,19 +159,7 @@ function build_compiler_libs() {
             -DCMAKE_EXE_LINKER_FLAGS="-Wl,--strip-all ${additional_linker_flags}" \
             -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--strip-all ${additional_linker_flags}" \
             -DCMAKE_SYSROOT="${SYSROOT}" \
-            -DLLVM_REQUIRES_RTTI=ON \
-            -DLLVM_TARGETS_TO_BUILD=${targets_to_build} \
-            -DLLVM_ENABLE_PROJECTS="${llvm_projects}" \
-            -DLLVM_BUILD_LLVM_DYLIB=ON \
-            -DLLVM_LINK_LLVM_DYLIB=ON \
-            -DLLVM_ENABLE_EH=ON \
-            -DLLVM_ENABLE_RTTI=ON \
-            -DLLVM_INCLUDE_DOCS=OFF \
-            -DLLVM_INCLUDE_TESTS=OFF \
-            -DLLVM_INCLUDE_EXAMPLES=OFF \
-            -DLLVM_ENABLE_LIBXML2=OFF \
-            -DLLVM_ENABLE_PIC=ON \
-            -DLLVM_DEFAULT_TARGET_TRIPLE=${TUPLE} \
+            -DLLVM_ENABLE_RUNTIMES="${llvm_projects}" \
             -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
             -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
             -DLIBCXXABI_USE_COMPILER_RT=ON \
@@ -185,8 +173,9 @@ function build_compiler_libs() {
             -DLIBUNWIND_USE_COMPILER_RT=ON \
             -DLIBUNWIND_ENABLE_STATIC=ON \
             -DLIBUNWIND_ENABLE_SHARED=OFF \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
             ${additional_cmake} \
-            ../llvm && \
+            ../runtimes && \
       cmake --build . --target cxx -j ${PARALLEL_JOBS} && \
       cmake --build . --target install-cxx -j ${PARALLEL_JOBS} && \
       cmake --build . --target install-cxxabi -j ${PARALLEL_JOBS} && \
@@ -265,6 +254,13 @@ prepare_sysroot
 export PATH=$CURRENT_DIR/$TUPLE/bin:$PATH
 build_zlib
 
+# glibc >= 2.26 removed xlocale.h (merged into locale.h). Add an empty stub
+# so that code expecting it (e.g. augeas/gnulib) still compiles.
+if [[ ! -e $PREFIX/include/xlocale.h ]]; then
+  echo "/* This header is intentionally empty. */" > $PREFIX/include/xlocale.h
+  echo "/* glibc >= 2.26 merged xlocale.h into locale.h. */" >> $PREFIX/include/xlocale.h
+fi
+
 if [[ ! -d $TOOLCHAIN_DIR/stage1 ]]; then
   mkdir -p $TOOLCHAIN_DIR/stage1
   cp -r $CURRENT_DIR/$TUPLE $TOOLCHAIN_DIR/stage1/
@@ -313,6 +309,12 @@ if [[ ! -d ${LLVM_SRC} ]]; then
   git clone https://github.com/llvm/llvm-project.git llvm -b llvmorg-$LLVM_VERSION --single-branch --depth 1
 fi
 
+# Patch LLVM SmallVector.h to add missing #include <cstdint> required by newer GCC.
+# See https://github.com/llvm/llvm-project/issues/62254
+if ! grep -q '#include <cstdint>' ${LLVM_SRC}/llvm/include/llvm/ADT/SmallVector.h; then
+  sed -i '/#include <algorithm>/a #include <cstdint>' ${LLVM_SRC}/llvm/include/llvm/ADT/SmallVector.h
+fi
+
 LLVM_DISABLED_TOOLS="-DLLVM_TOOL_BUGPOINT_BUILD=OFF"
 LLVM_DISABLED_TOOLS="${LLVM_DISABLED_TOOLS} -DLLVM_TOOL_BUGPOINT_PASSES_BUILD=OFF"
 LLVM_DISABLED_TOOLS="${LLVM_DISABLED_TOOLS} -DLLVM_TOOL_DSYMUTIL_BUILD=OFF"
@@ -326,15 +328,15 @@ cxx_compiler="g++" \
 install_dir="$PREFIX" \
 llvm_projects='clang;lld' \
 targets_to_build="$LLVM_MACHINE" \
-additional_linker_flags="" \
+additional_linker_flags="-static-libstdc++ -static-libgcc" \
 additional_compiler_flags="-s" \
-additional_cmake="" \
+additional_cmake="-DLLVM_BUILD_LLVM_DYLIB=OFF -DLLVM_LINK_LLVM_DYLIB=OFF" \
 build_llvm
 
 build_folder="build-compilerrt-builtins" \
 cc_compiler="clang" \
 cxx_compiler="clang++" \
-install_dir="$PREFIX/lib/clang/$LLVM_VERSION" \
+install_dir="$PREFIX/lib/clang/${LLVM_VERSION%%.*}" \
 additional_linker_flags="" \
 additional_cmake="" \
 build_compiler-rt-builtins
@@ -344,9 +346,8 @@ cc_compiler="clang" \
 cxx_compiler="clang++" \
 install_dir="$PREFIX" \
 llvm_projects='libcxx;libcxxabi;libunwind' \
-targets_to_build="$LLVM_MACHINE;BPF" \
 additional_linker_flags="" \
-additional_cmake="" \
+additional_cmake="-DCMAKE_CXX_STANDARD=20" \
 build_compiler_libs
 
 build_folder="build-libcxx" \
@@ -354,9 +355,8 @@ cc_compiler="clang" \
 cxx_compiler="clang++" \
 install_dir="$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot/usr" \
 llvm_projects='libcxx;libcxxabi;libunwind' \
-targets_to_build="$LLVM_MACHINE;BPF" \
 additional_linker_flags="" \
-additional_cmake="" \
+additional_cmake="-DCMAKE_CXX_STANDARD=20" \
 build_compiler_libs
 
 # Remove the static libclang/liblld from the sysroot
@@ -376,6 +376,7 @@ llvm_additional_cmake="${llvm_additional_cmake} -DCLANG_DEFAULT_RTLIB=compiler-r
 llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_USE_LINKER=lld"
 llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_ENABLE_LIBCXX=ON"
 llvm_additional_cmake="${llvm_additional_cmake} -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON"
+llvm_additional_cmake="${llvm_additional_cmake} -DCMAKE_CXX_STANDARD=20"
 
 build_folder="build-llvm-final" \
 cc_compiler="clang" \
@@ -400,7 +401,8 @@ PREFIX=$SYSROOT/usr
 ( cd $PREFIX/bin; \
   rm -f gcc; \
   rm -f g++; \
-  rm -f gcc-${GCC_VERSION}; \
+  rm -f gcc-*; \
+  rm -f lto-dump; \
   rm -f c++; \
   rm -f cc; \
   rm -f ld; \
