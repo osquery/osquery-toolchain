@@ -17,5 +17,17 @@ BUILD_GENERATOR="Ninja"
 # Valid values: Release, RelWithDebInfo, MinSizeRel, Debug
 LLVM_BUILD_TYPE=MinSizeRel
 
+ELFUTILS_VER="0.192"
+ELFUTILS_URL="https://sourceware.org/elfutils/ftp/${ELFUTILS_VER}/elfutils-${ELFUTILS_VER}.tar.bz2"
+ELFUTILS_SHA="616099beae24aba11f9b63d86ca6cc8d566d968b802391334c91df54eab416b4"
+
+LIBBPF_VER="1.5.0"
+LIBBPF_URL="https://github.com/libbpf/libbpf/archive/refs/tags/v${LIBBPF_VER}.tar.gz"
+LIBBPF_SHA="53492aff6dd47e4da04ef5e672d753b9743848bdb38e9d90eafbe190b7983c44"
+
+BPFTOOL_VER="7.5.0"
+BPFTOOL_URL="https://github.com/libbpf/bpftool/releases/download/v${BPFTOOL_VER}/bpftool-libbpf-v${BPFTOOL_VER}-sources.tar.gz"
+BPFTOOL_SHA="1468d3fb8c70698359a6593d8828f0e0a56b72244cb8632c6e1947e11b3520b9"
+
 # If this is false, only the last stage with the clang compile and the first stage, with crosstool gcc will be kept
 KEEP_INTERMEDIATE_STAGES=0

@@ -184,6 +184,79 @@ function build_compiler_libs() {
   fi
 }
 
+function build_elfutils() {
+  # Build elfutils for libelf (needed by libbpf and bpftool).
+  if [[ ! -d $CURRENT_DIR/elfutils-${ELFUTILS_VER} ]]; then
+    ( cd $CURRENT_DIR; \
+      wget $ELFUTILS_URL -O elfutils-${ELFUTILS_VER}.tar.bz2; \
+      echo "${ELFUTILS_SHA}  elfutils-${ELFUTILS_VER}.tar.bz2" | sha256sum -c; \
+      tar xjf elfutils-${ELFUTILS_VER}.tar.bz2 )
+  fi
+
+  if [[ ! -e $PREFIX/lib/libelf.a ]]; then
+    ( cd $CURRENT_DIR/elfutils-${ELFUTILS_VER}; \
+      CC=$PREFIX/bin/clang \
+      CFLAGS="--sysroot=$SYSROOT -fPIC" \
+      LDFLAGS="--sysroot=$SYSROOT" \
+      ./configure \
+        --prefix=$PREFIX \
+        --disable-debuginfod \
+        --disable-libdebuginfod \
+        --disable-demangler \
+        --without-lzma \
+        --without-bzlib \
+        --without-zstd \
+        --enable-static \
+        --disable-shared \
+        --disable-nls; \
+      make -j $PARALLEL_JOBS; \
+      make install )
+  fi
+}
+
+function build_libbpf() {
+  # Build libbpf and install headers + static library into the sysroot.
+  if [[ ! -d $CURRENT_DIR/libbpf-${LIBBPF_VER} ]]; then
+    ( cd $CURRENT_DIR; \
+      wget $LIBBPF_URL -O libbpf-${LIBBPF_VER}.tar.gz; \
+      echo "${LIBBPF_SHA}  libbpf-${LIBBPF_VER}.tar.gz" | sha256sum -c; \
+      tar xzf libbpf-${LIBBPF_VER}.tar.gz )
+  fi
+
+  if [[ ! -e $PREFIX/lib/libbpf.a ]]; then
+    ( cd $CURRENT_DIR/libbpf-${LIBBPF_VER}/src; \
+      CC=$PREFIX/bin/clang \
+      CFLAGS="--sysroot=$SYSROOT -fPIC" \
+      PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig \
+      BUILD_STATIC_ONLY=y \
+      make -j $PARALLEL_JOBS; \
+      BUILD_STATIC_ONLY=y \
+      make install PREFIX=$PREFIX LIBDIR=$PREFIX/lib )
+  fi
+}
+
+function build_bpftool() {
+  # Build bpftool (uses its bundled libbpf) and install the binary.
+  if [[ ! -d $CURRENT_DIR/bpftool-libbpf-v${BPFTOOL_VER}-sources ]]; then
+    ( cd $CURRENT_DIR; \
+      wget $BPFTOOL_URL -O bpftool-v${BPFTOOL_VER}.tar.gz; \
+      echo "${BPFTOOL_SHA}  bpftool-v${BPFTOOL_VER}.tar.gz" | sha256sum -c; \
+      tar xzf bpftool-v${BPFTOOL_VER}.tar.gz )
+  fi
+
+  if [[ ! -e $PREFIX/bin/bpftool ]]; then
+    ( cd $CURRENT_DIR/bpftool-libbpf-v${BPFTOOL_VER}-sources/src; \
+      CC=$PREFIX/bin/clang \
+      CLANG=$PREFIX/bin/clang \
+      LLVM_STRIP=$PREFIX/bin/llvm-strip \
+      EXTRA_CFLAGS="--sysroot=$SYSROOT" \
+      EXTRA_LDFLAGS="--sysroot=$SYSROOT" \
+      PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig \
+      make -j $PARALLEL_JOBS; \
+      install -m 0755 bpftool $PREFIX/bin/bpftool )
+  fi
+}
+
 function make_symlink_real() {
   symlink=$1
 
@@ -392,6 +465,10 @@ build_llvm
 CURRENT_DIR=$TOOLCHAIN_DIR/final
 SYSROOT=$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
+
+build_elfutils
+build_libbpf
+build_bpftool
 
 # Remove all the versions of libstdc++ from the sysroot.
 ( cd $PREFIX/lib; \
