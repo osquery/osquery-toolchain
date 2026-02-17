@@ -9,7 +9,7 @@ ZLIB_URL="https://zlib.net/fossils/zlib-${ZLIB_VER}.tar.gz"
 ZLIB_SHA="9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23"
 
 LLVM_VERSION="18.1.8"
-GCC_VERSION="15.2.0" # Notice: this has to match the same version that has been configured in crosstool-ng-config
+GCC_VERSION="13.4.0" # Notice: this has to match the same version that has been configured in crosstool-ng-config
 
 PARALLEL_JOBS=$(( $(nproc)+1 ))
 BUILD_GENERATOR="Ninja"

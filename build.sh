@@ -10,6 +10,8 @@
 # Version 1.0.0
 
 function build_gcc() {
+  echo "** Build GCC **"
+
   # Clone and build CrosstoolNG.
   if [[ ! -d $CURRENT_DIR/crosstool-ng ]]; then
     ( cd $CURRENT_DIR; \
@@ -34,6 +36,7 @@ function build_gcc() {
 }
 
 function prepare_sysroot() {
+  echo "** Prepare sysroot **"
 
   if [[ ! -e $PREFIX/bin/gcc ]]; then
     # Create symlinks in the new sysroot to GCC.
@@ -43,6 +46,8 @@ function prepare_sysroot() {
 }
 
 function build_zlib() {
+  echo "** Build zlib **"
+
   # Build a legacy zlib and install into the sysroot.
   if [[ ! -d $CURRENT_DIR/zlib-${ZLIB_VER} ]]; then
     ( cd $CURRENT_DIR; \
@@ -64,6 +69,7 @@ function build_zlib() {
 }
 
 function build_llvm() {
+  echo "** Build LLVM **"
 
   if [[ ! -e ${install_dir}/bin/clang ]]; then
 
@@ -105,6 +111,7 @@ function build_llvm() {
 }
 
 function build_compiler-rt-builtins() {
+  echo "** Build compiler-rt builtins **"
 
   if [[ ! -e ${install_dir}/lib/linux/libclang_rt.builtins-$MACHINE.a ]]; then
 
@@ -145,6 +152,7 @@ function build_compiler-rt-builtins() {
 
 #-DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
 function build_compiler_libs() {
+  echo "** Build compiler runtime libraries **"
 
   if [[ ! -e ${install_dir}/lib/libc++.a ]]; then
     ( cd $LLVM_SRC && \
@@ -185,6 +193,8 @@ function build_compiler_libs() {
 }
 
 function build_elfutils() {
+  echo "** Build elfutils **"
+
   # Build elfutils for libelf (needed by libbpf and bpftool).
   if [[ ! -d $CURRENT_DIR/elfutils-${ELFUTILS_VER} ]]; then
     ( cd $CURRENT_DIR; \
@@ -222,7 +232,8 @@ COMPAT_EOF
   if [[ ! -e $PREFIX/lib/libelf.a ]]; then
     ( cd $CURRENT_DIR/elfutils-${ELFUTILS_VER}; \
       CC=$PREFIX/bin/clang \
-      CFLAGS="--sysroot=$SYSROOT -fPIC -include $CURRENT_DIR/elfutils-${ELFUTILS_VER}/kernel-pac-compat.h" \
+      CFLAGS="--sysroot=$SYSROOT -fPIC -include $CURRENT_DIR/elfutils-${ELFUTILS_VER}/kernel-pac-compat.h -Wno-error=unused-parameter" \
+      CXXFLAGS="-Wno-error=unused-parameter" \
       LDFLAGS="--sysroot=$SYSROOT" \
       ./configure \
         --prefix=$PREFIX \
@@ -246,18 +257,22 @@ COMPAT_EOF
 }
 
 function build_libbpf() {
+  echo "** Build libbpf **"
+
   # Build libbpf and install headers + static library into the sysroot.
   if [[ ! -d $CURRENT_DIR/libbpf-${LIBBPF_VER} ]]; then
     ( cd $CURRENT_DIR; \
       wget $LIBBPF_URL -O libbpf-${LIBBPF_VER}.tar.gz; \
       echo "${LIBBPF_SHA}  libbpf-${LIBBPF_VER}.tar.gz" | sha256sum -c; \
-      tar xzf libbpf-${LIBBPF_VER}.tar.gz )
+      tar xzf libbpf-${LIBBPF_VER}.tar.gz; \
+      cd libbpf-${LIBBPF_VER}; \
+      patch -p1 < $SCRIPT_DIR/libbpf-bpf_user_pt_regs_t.patch )
   fi
 
   if [[ ! -e $PREFIX/lib/libbpf.a ]]; then
     ( cd $CURRENT_DIR/libbpf-${LIBBPF_VER}/src; \
       CC=$PREFIX/bin/clang \
-      CFLAGS="--sysroot=$SYSROOT -fPIC" \
+      CFLAGS="--sysroot=$SYSROOT -fPIC -Wno-array-bounds" \
       PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig \
       BUILD_STATIC_ONLY=y \
       make -j $PARALLEL_JOBS; \
@@ -267,7 +282,9 @@ function build_libbpf() {
 }
 
 function build_bpftool() {
-  # Build bpftool (uses its bundled libbpf) and install the binary.
+  echo "** Build bpftool **"
+
+  # Build bpftool using the separately installed libbpf.
   if [[ ! -d $CURRENT_DIR/bpftool-libbpf-v${BPFTOOL_VER}-sources ]]; then
     ( cd $CURRENT_DIR; \
       wget $BPFTOOL_URL -O bpftool-v${BPFTOOL_VER}.tar.gz; \
@@ -284,10 +301,12 @@ function build_bpftool() {
       CC=$PREFIX/bin/clang \
       CLANG=$PREFIX/bin/clang \
       LLVM_STRIP=$PREFIX/bin/llvm-strip \
-      EXTRA_CFLAGS="--sysroot=$SYSROOT" \
+      EXTRA_CFLAGS="--sysroot=$SYSROOT -Wno-array-bounds" \
       EXTRA_LDFLAGS="--sysroot=$SYSROOT -fuse-ld=lld -static -L$PREFIX/lib -L$GCC_LIB_DIR -leu -lunwind -lgcc" \
       PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig \
-      make -j $PARALLEL_JOBS; \
+      make -j $PARALLEL_JOBS \
+        LIBBPF=$PREFIX/lib/libbpf.a \
+        LIBBPF_INCLUDE=$PREFIX/include; \
       install -m 0755 bpftool $PREFIX/bin/bpftool )
   fi
 }
