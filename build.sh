@@ -193,10 +193,36 @@ function build_elfutils() {
       tar xjf elfutils-${ELFUTILS_VER}.tar.bz2 )
   fi
 
+  # Create a compat header for kernel headers older than 5.0 that lack
+  # struct user_pac_mask (ARM64 Pointer Authentication), needed by
+  # backends/aarch64_initreg.c.
+  cat > $CURRENT_DIR/elfutils-${ELFUTILS_VER}/kernel-pac-compat.h << 'COMPAT_EOF'
+#ifndef KERNEL_PAC_COMPAT_H
+#define KERNEL_PAC_COMPAT_H
+#include <stdint.h>
+#ifndef NT_ARM_PAC_MASK
+#define NT_ARM_PAC_MASK 0x406
+struct user_pac_mask {
+  uint64_t data_mask;
+  uint64_t insn_mask;
+};
+#endif
+#endif
+COMPAT_EOF
+
+  # If the sysroot's glibc provides reallocarray (glibc >= 2.26), tell
+  # configure explicitly.  Its AC_CHECK_DECLS test can fail under
+  # --sysroot cross-builds, leaving HAVE_DECL_REALLOCARRAY=0 which
+  # makes lib/system.h emit a conflicting static definition.
+  local elfutils_configure_vars=""
+  if grep -q reallocarray "$SYSROOT/usr/include/stdlib.h" 2>/dev/null; then
+    elfutils_configure_vars="ac_cv_have_decl_reallocarray=yes"
+  fi
+
   if [[ ! -e $PREFIX/lib/libelf.a ]]; then
     ( cd $CURRENT_DIR/elfutils-${ELFUTILS_VER}; \
       CC=$PREFIX/bin/clang \
-      CFLAGS="--sysroot=$SYSROOT -fPIC" \
+      CFLAGS="--sysroot=$SYSROOT -fPIC -include $CURRENT_DIR/elfutils-${ELFUTILS_VER}/kernel-pac-compat.h" \
       LDFLAGS="--sysroot=$SYSROOT" \
       ./configure \
         --prefix=$PREFIX \
@@ -208,9 +234,14 @@ function build_elfutils() {
         --without-zstd \
         --enable-static \
         --disable-shared \
-        --disable-nls; \
+        --disable-nls \
+        $elfutils_configure_vars; \
       make -j $PARALLEL_JOBS; \
-      make install )
+      make install; \
+      # Install internal convenience library needed by libelf
+      if [[ -f lib/libeu.a ]]; then \
+        cp lib/libeu.a $PREFIX/lib/; \
+      fi )
   fi
 }
 
@@ -245,12 +276,16 @@ function build_bpftool() {
   fi
 
   if [[ ! -e $PREFIX/bin/bpftool ]]; then
+    # bpftool has a bootstrap phase that needs native tools, so temporarily
+    # restore system PATH, then set cross-compilation vars for actual build
+    GCC_LIB_DIR=$TOOLCHAIN_DIR/final/$TUPLE/lib/gcc/$TUPLE/$GCC_VERSION
     ( cd $CURRENT_DIR/bpftool-libbpf-v${BPFTOOL_VER}-sources/src; \
+      PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH \
       CC=$PREFIX/bin/clang \
       CLANG=$PREFIX/bin/clang \
       LLVM_STRIP=$PREFIX/bin/llvm-strip \
       EXTRA_CFLAGS="--sysroot=$SYSROOT" \
-      EXTRA_LDFLAGS="--sysroot=$SYSROOT" \
+      EXTRA_LDFLAGS="--sysroot=$SYSROOT -fuse-ld=lld -static -L$PREFIX/lib -L$GCC_LIB_DIR -leu -lunwind -lgcc" \
       PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig \
       make -j $PARALLEL_JOBS; \
       install -m 0755 bpftool $PREFIX/bin/bpftool )
@@ -343,6 +378,17 @@ if [[ ! -d $TOOLCHAIN_DIR/final ]]; then
   mkdir -p $TOOLCHAIN_DIR/final
   cp -r $CURRENT_DIR/$TUPLE $TOOLCHAIN_DIR/final/
 fi
+
+# Fix pkg-config .pc files copied from stage0.  They contain hardcoded
+# stage0 absolute paths; without this fix, pkg-config returns -I flags
+# pointing into the stage0 sysroot, which take priority over --sysroot
+# and cause later builds (libbpf, bpftool) to pick up stage0 headers.
+STAGE0_SYSROOT_PREFIX=$CURRENT_DIR/$TUPLE/$TUPLE/sysroot/usr
+for dest in stage1 final; do
+  DEST_PREFIX=$TOOLCHAIN_DIR/$dest/$TUPLE/$TUPLE/sysroot/usr
+  find $DEST_PREFIX/lib/pkgconfig -name '*.pc' -exec \
+    sed -i "s|${STAGE0_SYSROOT_PREFIX}|${DEST_PREFIX}|g" {} + 2>/dev/null || true
+done
 
 STAGE1_SYSROOT=$TOOLCHAIN_DIR/stage1/$TUPLE/$TUPLE/sysroot
 if [[ ! -e $STAGE1_SYSROOT/usr/lib/gcc ]]; then
@@ -465,6 +511,64 @@ build_llvm
 CURRENT_DIR=$TOOLCHAIN_DIR/final
 SYSROOT=$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
+
+# Update PATH to use the final toolchain
+export PATH=$PREFIX/bin:$PATH
+
+# Kernel 4.9 headers lack asm/bpf_perf_event.h (added in 4.18).  Without it,
+# libbpf/bpftool fail to compile because bpf_user_pt_regs_t is undefined and,
+# on aarch64, struct pt_regs is an incomplete type in the UAPI headers.
+# Install an arch-appropriate compat header.
+if [[ ! -e $SYSROOT/usr/include/asm/bpf_perf_event.h ]]; then
+  if [[ "$MACHINE" = "aarch64" ]]; then
+    cat > $SYSROOT/usr/include/asm/bpf_perf_event.h << 'BPF_COMPAT_EOF'
+/* compat: kernel 4.9 lacks asm/bpf_perf_event.h (added in 4.18) */
+#ifndef _UAPI__ASM_BPF_PERF_EVENT_H__
+#define _UAPI__ASM_BPF_PERF_EVENT_H__
+
+#include <asm/ptrace.h>
+
+typedef struct user_pt_regs bpf_user_pt_regs_t;
+
+#endif /* _UAPI__ASM_BPF_PERF_EVENT_H__ */
+BPF_COMPAT_EOF
+  elif [[ "$MACHINE" = "x86_64" ]]; then
+    cat > $SYSROOT/usr/include/asm/bpf_perf_event.h << 'BPF_COMPAT_EOF'
+/* compat: kernel 4.9 lacks asm/bpf_perf_event.h (added in 4.18) */
+#ifndef _UAPI__ASM_BPF_PERF_EVENT_H__
+#define _UAPI__ASM_BPF_PERF_EVENT_H__
+
+#include <asm/ptrace.h>
+
+typedef struct pt_regs bpf_user_pt_regs_t;
+
+#endif /* _UAPI__ASM_BPF_PERF_EVENT_H__ */
+BPF_COMPAT_EOF
+  fi
+fi
+
+# Old kernel headers ship linux/bpf_perf_event.h that uses `struct pt_regs`
+# directly, which is incomplete on aarch64 UAPI.  Replace it with a modern
+# version that delegates to asm/bpf_perf_event.h (installed above) and uses
+# the portable bpf_user_pt_regs_t typedef.
+if grep -q 'struct pt_regs regs' "$SYSROOT/usr/include/linux/bpf_perf_event.h" 2>/dev/null; then
+  cat > $SYSROOT/usr/include/linux/bpf_perf_event.h << 'LINUX_BPF_COMPAT_EOF'
+/* compat: replaced old-style header that used struct pt_regs directly */
+#ifndef _UAPI__LINUX_BPF_PERF_EVENT_H__
+#define _UAPI__LINUX_BPF_PERF_EVENT_H__
+
+#include <linux/types.h>
+#include <asm/bpf_perf_event.h>
+
+struct bpf_perf_event_data {
+	bpf_user_pt_regs_t regs;
+	__u64 sample_period;
+	__u64 addr;
+};
+
+#endif /* _UAPI__LINUX_BPF_PERF_EVENT_H__ */
+LINUX_BPF_COMPAT_EOF
+fi
 
 build_elfutils
 build_libbpf
