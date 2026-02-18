@@ -448,7 +448,6 @@ if [[ ! -d ${LLVM_SRC} ]]; then
 fi
 
 # Patch LLVM SmallVector.h to add missing #include <cstdint> required by newer GCC.
-# See https://github.com/llvm/llvm-project/issues/62254
 if ! grep -q '#include <cstdint>' ${LLVM_SRC}/llvm/include/llvm/ADT/SmallVector.h; then
   sed -i '/#include <algorithm>/a #include <cstdint>' ${LLVM_SRC}/llvm/include/llvm/ADT/SmallVector.h
 fi
