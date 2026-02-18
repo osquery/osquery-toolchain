@@ -302,7 +302,7 @@ function build_bpftool() {
       CLANG=$PREFIX/bin/clang \
       LLVM_STRIP=$PREFIX/bin/llvm-strip \
       EXTRA_CFLAGS="--sysroot=$SYSROOT -Wno-array-bounds" \
-      EXTRA_LDFLAGS="--sysroot=$SYSROOT -fuse-ld=lld -static -L$PREFIX/lib -L$GCC_LIB_DIR -leu -lunwind -lgcc" \
+      EXTRA_LDFLAGS="--sysroot=$SYSROOT -fuse-ld=lld -Wl,--allow-multiple-definition -static -L$PREFIX/lib -L$GCC_LIB_DIR -leu -lunwind -lgcc" \
       PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig \
       make -j $PARALLEL_JOBS \
         LIBBPF=$PREFIX/lib/libbpf.a \
