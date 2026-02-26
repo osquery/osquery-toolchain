@@ -29,9 +29,6 @@ The version of the GCC compiler built by crosstool-ng is 13.4.0
 The version of the libc library built by crosstool-ng is 2.17 (x86_64) / 2.27 (aarch64)
 The version of LLVM/Clang built by the script is 18.1.8
 The version of the zlib library built by the script is 1.3.1
-The version of elfutils built by the script is 0.192
-The version of libbpf built by the script is 1.5.0
-The version of bpftool built by the script is 7.5.0
 
 Among others, the toolchain LLVM/Clang includes the clang static analyzer, scan-build, clang-format, clang-tidy.
 
