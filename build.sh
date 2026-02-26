@@ -412,9 +412,6 @@ CURRENT_DIR=$TOOLCHAIN_DIR/final
 SYSROOT=$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
 
-# Update PATH to use the final toolchain
-export PATH=$PREFIX/bin:$PATH
-
 # Remove all the versions of libstdc++ from the sysroot.
 ( cd $PREFIX/lib; \
   rm -f libstdc*)
