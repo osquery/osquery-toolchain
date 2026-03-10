@@ -45,29 +45,6 @@ function prepare_sysroot() {
   fi
 }
 
-function build_zlib() {
-  echo "** Build zlib **"
-
-  # Build a legacy zlib and install into the sysroot.
-  if [[ ! -d $CURRENT_DIR/zlib-${ZLIB_VER} ]]; then
-    ( cd $CURRENT_DIR; \
-      wget $ZLIB_URL; \
-      echo "${ZLIB_SHA} zlib-${ZLIB_VER}.tar.gz" | sha256sum -c; \
-      tar xzf zlib-${ZLIB_VER}.tar.gz )
-  fi
-
-  if [[ ! -e $PREFIX/lib/libz.a ]]; then
-    ( cd $CURRENT_DIR/zlib-${ZLIB_VER}; \
-      CC=$TUPLE-gcc \
-      CXX=$TUPLE-g++ \
-      CFLAGS=--sysroot=$SYSROOT \
-      LDFLAGS=--sysroot=$SYSROOT \
-      ./configure --prefix $PREFIX;
-      make -j $PARALLEL_JOBS; \
-      make install )
-  fi
-}
-
 function build_llvm() {
   echo "** Build LLVM **"
 
@@ -192,7 +169,6 @@ function build_compiler_libs() {
   fi
 }
 
-
 function make_symlink_real() {
   symlink=$1
 
@@ -261,14 +237,13 @@ build_gcc
 prepare_sysroot
 
 export PATH=$CURRENT_DIR/$TUPLE/bin:$PATH
-build_zlib
 
 # glibc >= 2.26 removed xlocale.h (merged into locale.h). Add an empty stub
 # so that code expecting it (e.g. augeas/gnulib) still compiles.
-if [[ ! -e $PREFIX/include/xlocale.h ]]; then
-  echo "/* This header is intentionally empty. */" > $PREFIX/include/xlocale.h
-  echo "/* glibc >= 2.26 merged xlocale.h into locale.h. */" >> $PREFIX/include/xlocale.h
-fi
+#if [[ ! -e $PREFIX/include/xlocale.h ]]; then
+  #echo "/* This header is intentionally empty. */" > $PREFIX/include/xlocale.h
+  #echo "/* glibc >= 2.26 merged xlocale.h into locale.h. */" >> $PREFIX/include/xlocale.h
+#fi
 
 if [[ ! -d $TOOLCHAIN_DIR/stage1 ]]; then
   mkdir -p $TOOLCHAIN_DIR/stage1
@@ -434,7 +409,8 @@ PREFIX=$SYSROOT/usr
 symlinks_to_transform=(
   lib/gcc
   bin/addr2line
-  bin/ar bin/as
+  bin/ar
+  bin/as
   bin/c++filt
   bin/cpp
   bin/elfedit
