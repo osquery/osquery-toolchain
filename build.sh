@@ -232,18 +232,10 @@ mkdir -p $CURRENT_DIR
 SYSROOT=$CURRENT_DIR/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
 
-
 build_gcc
 prepare_sysroot
 
 export PATH=$CURRENT_DIR/$TUPLE/bin:$PATH
-
-# glibc >= 2.26 removed xlocale.h (merged into locale.h). Add an empty stub
-# so that code expecting it (e.g. augeas/gnulib) still compiles.
-#if [[ ! -e $PREFIX/include/xlocale.h ]]; then
-  #echo "/* This header is intentionally empty. */" > $PREFIX/include/xlocale.h
-  #echo "/* glibc >= 2.26 merged xlocale.h into locale.h. */" >> $PREFIX/include/xlocale.h
-#fi
 
 if [[ ! -d $TOOLCHAIN_DIR/stage1 ]]; then
   mkdir -p $TOOLCHAIN_DIR/stage1
