@@ -363,6 +363,7 @@ llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_USE_LINKER=lld"
 llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_ENABLE_LIBCXX=ON"
 llvm_additional_cmake="${llvm_additional_cmake} -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON"
 llvm_additional_cmake="${llvm_additional_cmake} -DCMAKE_CXX_STANDARD=20"
+llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_USE_LINKER=${SYSROOT}/usr/bin/ld.lld"
 
 build_folder="build-llvm-final" \
 cc_compiler="clang" \
