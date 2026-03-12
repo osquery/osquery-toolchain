@@ -45,6 +45,29 @@ function prepare_sysroot() {
   fi
 }
 
+function build_zlib() {
+  echo "** Build zlib **"
+
+  # Build a legacy zlib and install into the sysroot.
+  if [[ ! -d $CURRENT_DIR/zlib-${ZLIB_VER} ]]; then
+    ( cd $CURRENT_DIR; \
+      wget $ZLIB_URL; \
+      echo "${ZLIB_SHA} zlib-${ZLIB_VER}.tar.gz" | sha256sum -c; \
+      tar xzf zlib-${ZLIB_VER}.tar.gz )
+  fi
+
+  if [[ ! -e $PREFIX/lib/libz.a ]]; then
+    ( cd $CURRENT_DIR/zlib-${ZLIB_VER}; \
+      CC=$TUPLE-gcc \
+      CXX=$TUPLE-g++ \
+      CFLAGS=--sysroot=$SYSROOT \
+      LDFLAGS=--sysroot=$SYSROOT \
+      ./configure --prefix $PREFIX;
+      make -j $PARALLEL_JOBS; \
+      make install )
+  fi
+}
+
 function build_llvm() {
   echo "** Build LLVM **"
 
@@ -236,6 +259,7 @@ build_gcc
 prepare_sysroot
 
 export PATH=$CURRENT_DIR/$TUPLE/bin:$PATH
+build_zlib
 
 if [[ ! -d $TOOLCHAIN_DIR/stage1 ]]; then
   mkdir -p $TOOLCHAIN_DIR/stage1
@@ -358,12 +382,11 @@ PREFIX=$CURRENT_DIR/$TUPLE/$TUPLE/sysroot/usr
 llvm_additional_cmake="-DCOMPILER_RT_INSTALL_PATH=${PREFIX}"
 llvm_additional_cmake="${llvm_additional_cmake} -DCLANG_DEFAULT_CXX_STDLIB=libc++"
 llvm_additional_cmake="${llvm_additional_cmake} -DCLANG_DEFAULT_LINKER=lld"
-llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_ENABLE_LLD=ON"
 llvm_additional_cmake="${llvm_additional_cmake} -DCLANG_DEFAULT_RTLIB=compiler-rt"
 llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_ENABLE_LIBCXX=ON"
+llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_USE_LINKER=lld"
 llvm_additional_cmake="${llvm_additional_cmake} -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON"
 llvm_additional_cmake="${llvm_additional_cmake} -DCMAKE_CXX_STANDARD=20"
-llvm_additional_cmake="${llvm_additional_cmake} -DCLANG_DEFAULT_UNWINDLIB=libunwind"
 
 build_folder="build-llvm-final" \
 cc_compiler="clang" \
@@ -372,7 +395,7 @@ install_dir="$PREFIX" \
 llvm_projects='clang;compiler-rt;lld;clang-tools-extra' \
 targets_to_build="$LLVM_MACHINE;BPF" \
 additional_compiler_flags="" \
-additional_linker_flags="-rtlib=compiler-rt -l:libc++abi.a -l:libunwind.a -ldl -lpthread" \
+additional_linker_flags="-rtlib=compiler-rt -l:libc++abi.a -ldl -lpthread" \
 additional_cmake="${llvm_additional_cmake}" \
 build_llvm
 
