@@ -358,6 +358,7 @@ PREFIX=$CURRENT_DIR/$TUPLE/$TUPLE/sysroot/usr
 llvm_additional_cmake="-DCOMPILER_RT_INSTALL_PATH=${PREFIX}"
 llvm_additional_cmake="${llvm_additional_cmake} -DCLANG_DEFAULT_CXX_STDLIB=libc++"
 llvm_additional_cmake="${llvm_additional_cmake} -DCLANG_DEFAULT_LINKER=lld"
+llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_ENABLE_LLD=ON"
 llvm_additional_cmake="${llvm_additional_cmake} -DCLANG_DEFAULT_RTLIB=compiler-rt"
 llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_ENABLE_LIBCXX=ON"
 llvm_additional_cmake="${llvm_additional_cmake} -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON"

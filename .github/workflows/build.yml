@@ -32,6 +32,10 @@ jobs:
       - name: Build
         run: ./build.sh "/opt/osquery-toolchain"
 
+      - name: Print CMake Error Log
+        if: failure()
+        run: cat /opt/osquery-toolchain/llvm/build-llvm-final/CMakeFiles/CMakeError.log
+
       - name: Archive
         run: |
           cd /opt/osquery-toolchain/final
