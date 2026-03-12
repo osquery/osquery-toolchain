@@ -32,9 +32,11 @@ jobs:
       - name: Build
         run: ./build.sh "/opt/osquery-toolchain"
 
-      - name: Print CMake Error Log
+      - name: SSH for Debugging
         if: failure()
-        run: cat /opt/osquery-toolchain/llvm/build-llvm-final/CMakeFiles/CMakeError.log
+        uses: owenthereal/action-upterm@v1
+        with:
+          limit-access-to-actor: true # Restrict to the user who triggered the workflow
 
       - name: Archive
         run: |
