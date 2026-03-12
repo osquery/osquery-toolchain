@@ -315,7 +315,7 @@ install_dir="$PREFIX" \
 llvm_projects='clang;lld' \
 targets_to_build="$LLVM_MACHINE" \
 additional_linker_flags="-static-libstdc++ -static-libgcc" \
-additional_compiler_flags="-s" \
+additional_compiler_flags="" \
 additional_cmake="-DLLVM_BUILD_LLVM_DYLIB=OFF -DLLVM_LINK_LLVM_DYLIB=OFF" \
 build_llvm
 
@@ -363,7 +363,7 @@ llvm_additional_cmake="${llvm_additional_cmake} -DCLANG_DEFAULT_RTLIB=compiler-r
 llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_ENABLE_LIBCXX=ON"
 llvm_additional_cmake="${llvm_additional_cmake} -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON"
 llvm_additional_cmake="${llvm_additional_cmake} -DCMAKE_CXX_STANDARD=20"
-
+llvm_additional_cmake="${llvm_additional_cmake} -DCLANG_DEFAULT_UNWINDLIB=libunwind"
 
 build_folder="build-llvm-final" \
 cc_compiler="clang" \
@@ -372,7 +372,7 @@ install_dir="$PREFIX" \
 llvm_projects='clang;compiler-rt;lld;clang-tools-extra' \
 targets_to_build="$LLVM_MACHINE;BPF" \
 additional_compiler_flags="" \
-additional_linker_flags="-rtlib=compiler-rt -l:libc++abi.a -ldl -lpthread" \
+additional_linker_flags="-rtlib=compiler-rt -l:libc++abi.a -l:libunwind.a -ldl -lpthread" \
 additional_cmake="${llvm_additional_cmake}" \
 build_llvm
 
