@@ -223,6 +223,13 @@ function make_symlink_real() {
   fi
 }
 
+function patch_final_config_cmake() {
+  # Make so that ZLIB_ROOT is relative to the Config.cmake,
+  # since we want for it to report
+  path_to_config_file="${install_dir}/lib/cmake/llvm/LLVMConfig.cmake"
+  sed -Ei 's|(set\(ZLIB_ROOT )(.*)|\1"${CMAKE_CURRENT_LIST_DIR}/../../../")|g' "${path_to_config_file}"
+}
+
 set -e
 
 MACHINE="$(uname -m)"
@@ -402,6 +409,8 @@ build_llvm
 CURRENT_DIR=$TOOLCHAIN_DIR/final
 SYSROOT=$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
+
+patch_final_config_cmake
 
 # Remove all the versions of libstdc++ from the sysroot.
 ( cd $PREFIX/lib; \
