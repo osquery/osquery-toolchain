@@ -410,7 +410,8 @@ CURRENT_DIR=$TOOLCHAIN_DIR/final
 SYSROOT=$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
 
-patch_final_config_cmake
+install_dir="$PREFIX" patch_final_config_cmake
+
 
 # Remove all the versions of libstdc++ from the sysroot.
 ( cd $PREFIX/lib; \
