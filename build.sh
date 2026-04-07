@@ -224,8 +224,7 @@ function make_symlink_real() {
 }
 
 function patch_final_config_cmake() {
-  # Make so that ZLIB_ROOT is relative to the Config.cmake,
-  # since we want for it to report
+  # Make so that ZLIB_ROOT is relative to the Config.cmake, otherwise it will point to an absolute path that is not found in the packaged toolchain.
   path_to_config_file="${install_dir}/lib/cmake/llvm/LLVMConfig.cmake"
   sed -Ei 's|(set\(ZLIB_ROOT )(.*)|\1"${CMAKE_CURRENT_LIST_DIR}/../../../")|g' "${path_to_config_file}"
 }
