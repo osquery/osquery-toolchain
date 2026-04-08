@@ -10,10 +10,12 @@
 # Version 1.0.0
 
 function build_gcc() {
+  echo "** Build GCC **"
+
   # Clone and build CrosstoolNG.
   if [[ ! -d $CURRENT_DIR/crosstool-ng ]]; then
     ( cd $CURRENT_DIR; \
-      git clone https://github.com/crosstool-ng/crosstool-ng -b crosstool-ng-1.24.0 --single-branch )
+      git clone https://github.com/crosstool-ng/crosstool-ng -b crosstool-ng-1.28.0 --single-branch )
   fi
 
   # Use our own config that sets a legacy glibc.
@@ -34,6 +36,7 @@ function build_gcc() {
 }
 
 function prepare_sysroot() {
+  echo "** Prepare sysroot **"
 
   if [[ ! -e $PREFIX/bin/gcc ]]; then
     # Create symlinks in the new sysroot to GCC.
@@ -43,6 +46,8 @@ function prepare_sysroot() {
 }
 
 function build_zlib() {
+  echo "** Build zlib **"
+
   # Build a legacy zlib and install into the sysroot.
   if [[ ! -d $CURRENT_DIR/zlib-${ZLIB_VER} ]]; then
     ( cd $CURRENT_DIR; \
@@ -64,6 +69,7 @@ function build_zlib() {
 }
 
 function build_llvm() {
+  echo "** Build LLVM **"
 
   if [[ ! -e ${install_dir}/bin/clang ]]; then
 
@@ -105,6 +111,7 @@ function build_llvm() {
 }
 
 function build_compiler-rt-builtins() {
+  echo "** Build compiler-rt builtins **"
 
   if [[ ! -e ${install_dir}/lib/linux/libclang_rt.builtins-$MACHINE.a ]]; then
 
@@ -145,6 +152,7 @@ function build_compiler-rt-builtins() {
 
 #-DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
 function build_compiler_libs() {
+  echo "** Build compiler runtime libraries **"
 
   if [[ ! -e ${install_dir}/lib/libc++.a ]]; then
     ( cd $LLVM_SRC && \
@@ -159,19 +167,7 @@ function build_compiler_libs() {
             -DCMAKE_EXE_LINKER_FLAGS="-Wl,--strip-all ${additional_linker_flags}" \
             -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--strip-all ${additional_linker_flags}" \
             -DCMAKE_SYSROOT="${SYSROOT}" \
-            -DLLVM_REQUIRES_RTTI=ON \
-            -DLLVM_TARGETS_TO_BUILD=${targets_to_build} \
-            -DLLVM_ENABLE_PROJECTS="${llvm_projects}" \
-            -DLLVM_BUILD_LLVM_DYLIB=ON \
-            -DLLVM_LINK_LLVM_DYLIB=ON \
-            -DLLVM_ENABLE_EH=ON \
-            -DLLVM_ENABLE_RTTI=ON \
-            -DLLVM_INCLUDE_DOCS=OFF \
-            -DLLVM_INCLUDE_TESTS=OFF \
-            -DLLVM_INCLUDE_EXAMPLES=OFF \
-            -DLLVM_ENABLE_LIBXML2=OFF \
-            -DLLVM_ENABLE_PIC=ON \
-            -DLLVM_DEFAULT_TARGET_TRIPLE=${TUPLE} \
+            -DLLVM_ENABLE_RUNTIMES="${llvm_projects}" \
             -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
             -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON \
             -DLIBCXXABI_USE_COMPILER_RT=ON \
@@ -185,8 +181,9 @@ function build_compiler_libs() {
             -DLIBUNWIND_USE_COMPILER_RT=ON \
             -DLIBUNWIND_ENABLE_STATIC=ON \
             -DLIBUNWIND_ENABLE_SHARED=OFF \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
             ${additional_cmake} \
-            ../llvm && \
+            ../runtimes && \
       cmake --build . --target cxx -j ${PARALLEL_JOBS} && \
       cmake --build . --target install-cxx -j ${PARALLEL_JOBS} && \
       cmake --build . --target install-cxxabi -j ${PARALLEL_JOBS} && \
@@ -226,6 +223,12 @@ function make_symlink_real() {
   fi
 }
 
+function patch_final_config_cmake() {
+  # Make so that ZLIB_ROOT is relative to the Config.cmake, otherwise it will point to an absolute path that is not found in the packaged toolchain.
+  path_to_config_file="${install_dir}/lib/cmake/llvm/LLVMConfig.cmake"
+  sed -Ei 's|(set\(ZLIB_ROOT )(.*)|\1"${CMAKE_CURRENT_LIST_DIR}/../../../")|g' "${path_to_config_file}"
+}
+
 set -e
 
 MACHINE="$(uname -m)"
@@ -258,7 +261,6 @@ mkdir -p $CURRENT_DIR
 SYSROOT=$CURRENT_DIR/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
 
-
 build_gcc
 prepare_sysroot
 
@@ -274,6 +276,17 @@ if [[ ! -d $TOOLCHAIN_DIR/final ]]; then
   mkdir -p $TOOLCHAIN_DIR/final
   cp -r $CURRENT_DIR/$TUPLE $TOOLCHAIN_DIR/final/
 fi
+
+# Fix pkg-config .pc files copied from stage0.  They contain hardcoded
+# stage0 absolute paths; without this fix, pkg-config returns -I flags
+# pointing into the stage0 sysroot, which take priority over --sysroot
+# and cause later builds (libbpf, bpftool) to pick up stage0 headers.
+STAGE0_SYSROOT_PREFIX=$CURRENT_DIR/$TUPLE/$TUPLE/sysroot/usr
+for dest in stage1 final; do
+  DEST_PREFIX=$TOOLCHAIN_DIR/$dest/$TUPLE/$TUPLE/sysroot/usr
+  find $DEST_PREFIX/lib/pkgconfig -name '*.pc' -exec \
+    sed -i "s|${STAGE0_SYSROOT_PREFIX}|${DEST_PREFIX}|g" {} + 2>/dev/null || true
+done
 
 STAGE1_SYSROOT=$TOOLCHAIN_DIR/stage1/$TUPLE/$TUPLE/sysroot
 if [[ ! -e $STAGE1_SYSROOT/usr/lib/gcc ]]; then
@@ -313,6 +326,11 @@ if [[ ! -d ${LLVM_SRC} ]]; then
   git clone https://github.com/llvm/llvm-project.git llvm -b llvmorg-$LLVM_VERSION --single-branch --depth 1
 fi
 
+# Patch LLVM SmallVector.h to add missing #include <cstdint> required by newer GCC.
+if ! grep -q '#include <cstdint>' ${LLVM_SRC}/llvm/include/llvm/ADT/SmallVector.h; then
+  sed -i '/#include <algorithm>/a #include <cstdint>' ${LLVM_SRC}/llvm/include/llvm/ADT/SmallVector.h
+fi
+
 LLVM_DISABLED_TOOLS="-DLLVM_TOOL_BUGPOINT_BUILD=OFF"
 LLVM_DISABLED_TOOLS="${LLVM_DISABLED_TOOLS} -DLLVM_TOOL_BUGPOINT_PASSES_BUILD=OFF"
 LLVM_DISABLED_TOOLS="${LLVM_DISABLED_TOOLS} -DLLVM_TOOL_DSYMUTIL_BUILD=OFF"
@@ -326,15 +344,15 @@ cxx_compiler="g++" \
 install_dir="$PREFIX" \
 llvm_projects='clang;lld' \
 targets_to_build="$LLVM_MACHINE" \
-additional_linker_flags="" \
-additional_compiler_flags="-s" \
-additional_cmake="" \
+additional_linker_flags="-static-libstdc++ -static-libgcc" \
+additional_compiler_flags="" \
+additional_cmake="-DLLVM_BUILD_LLVM_DYLIB=OFF -DLLVM_LINK_LLVM_DYLIB=OFF" \
 build_llvm
 
 build_folder="build-compilerrt-builtins" \
 cc_compiler="clang" \
 cxx_compiler="clang++" \
-install_dir="$PREFIX/lib/clang/$LLVM_VERSION" \
+install_dir="$PREFIX/lib/clang/${LLVM_VERSION%%.*}" \
 additional_linker_flags="" \
 additional_cmake="" \
 build_compiler-rt-builtins
@@ -344,9 +362,8 @@ cc_compiler="clang" \
 cxx_compiler="clang++" \
 install_dir="$PREFIX" \
 llvm_projects='libcxx;libcxxabi;libunwind' \
-targets_to_build="$LLVM_MACHINE;BPF" \
 additional_linker_flags="" \
-additional_cmake="" \
+additional_cmake="-DCMAKE_CXX_STANDARD=20" \
 build_compiler_libs
 
 build_folder="build-libcxx" \
@@ -354,9 +371,8 @@ cc_compiler="clang" \
 cxx_compiler="clang++" \
 install_dir="$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot/usr" \
 llvm_projects='libcxx;libcxxabi;libunwind' \
-targets_to_build="$LLVM_MACHINE;BPF" \
 additional_linker_flags="" \
-additional_cmake="" \
+additional_cmake="-DCMAKE_CXX_STANDARD=20" \
 build_compiler_libs
 
 # Remove the static libclang/liblld from the sysroot
@@ -373,9 +389,10 @@ llvm_additional_cmake="-DCOMPILER_RT_INSTALL_PATH=${PREFIX}"
 llvm_additional_cmake="${llvm_additional_cmake} -DCLANG_DEFAULT_CXX_STDLIB=libc++"
 llvm_additional_cmake="${llvm_additional_cmake} -DCLANG_DEFAULT_LINKER=lld"
 llvm_additional_cmake="${llvm_additional_cmake} -DCLANG_DEFAULT_RTLIB=compiler-rt"
-llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_USE_LINKER=lld"
 llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_ENABLE_LIBCXX=ON"
+llvm_additional_cmake="${llvm_additional_cmake} -DLLVM_USE_LINKER=lld"
 llvm_additional_cmake="${llvm_additional_cmake} -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON"
+llvm_additional_cmake="${llvm_additional_cmake} -DCMAKE_CXX_STANDARD=20"
 
 build_folder="build-llvm-final" \
 cc_compiler="clang" \
@@ -392,6 +409,9 @@ CURRENT_DIR=$TOOLCHAIN_DIR/final
 SYSROOT=$TOOLCHAIN_DIR/final/$TUPLE/$TUPLE/sysroot
 PREFIX=$SYSROOT/usr
 
+install_dir="$PREFIX" patch_final_config_cmake
+
+
 # Remove all the versions of libstdc++ from the sysroot.
 ( cd $PREFIX/lib; \
   rm -f libstdc*)
@@ -400,7 +420,8 @@ PREFIX=$SYSROOT/usr
 ( cd $PREFIX/bin; \
   rm -f gcc; \
   rm -f g++; \
-  rm -f gcc-${GCC_VERSION}; \
+  rm -f gcc-*; \
+  rm -f lto-dump; \
   rm -f c++; \
   rm -f cc; \
   rm -f ld; \
@@ -413,7 +434,8 @@ PREFIX=$SYSROOT/usr
 symlinks_to_transform=(
   lib/gcc
   bin/addr2line
-  bin/ar bin/as
+  bin/ar
+  bin/as
   bin/c++filt
   bin/cpp
   bin/elfedit
